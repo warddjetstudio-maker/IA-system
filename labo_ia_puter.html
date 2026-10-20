@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LABO·IA</title>
+<script src="https://js.puter.com/v2/"></script>
+<style>
+:root{--bg:#07080f;--p:#10121f;--b:#26294a;--c:#00f0ff;--m:#ff2bd6;--g:#b6ff00;--t:#dfe6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:13px system-ui,sans-serif;padding:10px}
+h1{margin:0 10px 0 0;font-size:20px;letter-spacing:3px;color:var(--c);text-shadow:0 0 10px var(--c)}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+button,select,input{background:var(--p);color:var(--t);border:1px solid var(--b);border-radius:6px;padding:6px 9px;font:inherit}
+button{cursor:pointer}button:hover,button.on{border-color:var(--c);color:var(--c)}
+button.go{border-color:var(--m);color:var(--m)}
+input[type=number]{width:72px}input[type=checkbox]{padding:0}
+label{color:#8c93c8;font-size:12px;display:flex;align-items:center;gap:4px}
+.main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:10px}
+@media(max-width:800px){.main{grid-template-columns:1fr}}
+canvas{width:100%;background:var(--p);border:1px solid var(--b);border-radius:8px;display:block;touch-action:none;margin-bottom:8px}
+#st{color:var(--g);font-family:monospace}#hint{color:#8c93c8;font-size:12px}
+button#live.on{border-color:var(--g);color:var(--g);box-shadow:0 0 8px var(--g)}
+#chat{margin-top:10px;background:var(--p);border:1px solid var(--b);border-radius:8px;padding:8px}
+#chat h2{margin:0 0 6px;font-size:13px;letter-spacing:2px;color:var(--m)}
+#msgs{height:230px;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.m{max-width:85%;padding:6px 10px;border-radius:10px;white-space:pre-wrap;line-height:1.4}
+.m.u{align-self:flex-end;background:#12284a;border:1px solid var(--c)}
+.m.a{align-self:flex-start;background:#1a1330;border:1px solid var(--m)}
+#chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}#chips button{font-size:11px;padding:3px 8px}
+#chat .row{display:flex;gap:6px}#ci{flex:1}
+.airow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 6px;color:#8c93c8;font-size:12px}.airow select{max-width:220px}.status{color:var(--g);font-family:monospace}
+.dock{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:800px){.dock{grid-template-columns:1fr}}
+.dock #chat{margin-top:0}
+#term{background:#05060b;border:1px solid var(--g);border-radius:8px;padding:8px;font-family:ui-monospace,Consolas,monospace;cursor:text}
+#term h2{margin:0 0 6px;font-size:13px;letter-spacing:2px;color:var(--g)}
+#tout{height:230px;overflow:auto;white-space:pre-wrap;font-size:12px;line-height:1.4;margin-bottom:6px}
+#tout .e{color:#ff6b8a}#tout .d{color:#8c93c8}#tout .o{color:var(--t)}#tout .c{color:var(--c)}
+#term .row{display:flex;gap:6px;align-items:center;color:var(--g)}
+#tin{flex:1;background:none;border:0;color:var(--g);font:inherit;outline:0;padding:0}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>LABO·IA</h1>
+  <select id="ds"><option value="spirals">Spirales</option><option value="xor">XOR</option><option value="circles">Cercles</option><option value="moons">Lunes</option><option value="blobs">Blobs</option><option value="custom">Dessiné</option></select>
+  <label>bruit<input id="nz" type="number" step="0.05" value="0.15"></label>
+  <span id="fe" class="bar" style="margin:0"></span>
+  <button id="nd">↻ Nouvelles données</button>
+</div>
+<div class="bar">
+  <button id="go" class="go">▶ Entraîner</button><button id="autotrain">⚡ Auto 7–20/s : OFF</button><label>époques/s <input id="rate" type="number" min="7" max="20" value="12"></label><button id="one">1 époque</button><button id="rw">↺ Poids</button>
+  <select id="act"><option value="relu">ReLU</option><option value="leaky">LeakyReLU</option><option value="tanh">Tanh</option><option value="sig">Sigmoid</option></select>
+  <label>lr<input id="lr" type="number" step="0.005" value="0.02"></label>
+  <label>batch<input id="bs" type="number" value="16"></label>
+  <span id="st"></span>
+  <button id="live">● LIVE</button><label><input id="lt" type="checkbox" checked>apprend</label><span id="lv" style="color:#ffd;font-family:monospace"></span>
+</div>
+<div class="bar">
+  <button data-m="move" class="on">✋ Déplacer</button><button data-m="add">➕ Neurone</button><button data-m="del">🗑 Neurone</button>
+  <button data-m="cut">✂ Lien</button><button data-m="w">✎ Poids</button><button data-m="frz">❄ Geler</button><button data-m="insp">🔍 Inspecter</button>
+  <button id="al">+ couche</button><button id="rl">− couche</button><button id="pr">Élaguer</button><button id="lay">Ranger</button>
+  <button id="exp">Exporter</button><button id="imp">Importer</button><input type="file" id="file" accept=".json" hidden>
+  <button id="dr">✏ Dessiner</button><button class="pen on" data-p="0" style="color:#00f0ff">0</button><button class="pen" data-p="1" style="color:#ff2bd6">1</button><button class="pen" data-p="2" style="color:#b6ff00">2</button>
+</div>
+<div class="main">
+  <canvas id="net" width="900" height="560"></canvas>
+  <div><canvas id="cv" width="420" height="420"></canvas><canvas id="ch" width="420" height="170"></canvas></div>
+</div>
+<div class="dock"><div id="chat"><h2>💬 PARLER À L'IA</h2><div id="msgs"></div><div id="chips"></div>
+  <div class="airow"><button id="puterToggle">☁ IA Puter : OFF</button><select id="puterModel"><option value="gpt-5.6-luna">GPT-5.6 Luna</option><option value="openai/gpt-5.4-nano">GPT-5.4 Nano (rapide)</option></select><span id="puterStatus" class="status">Mode local</span></div>
+  <div class="row"><input id="ci" placeholder="Parle librement : « pourquoi tu te trompes ? », « 0.3 -0.5 », « c'est quoi la loss ? »…" autocomplete="off"><button id="cs" class="go">Envoyer</button></div></div>
+<div id="term"><h2>⌨ TERMINAL</h2><div id="tout"></div><div class="row"><span>labo&gt;</span><input id="tin" autocomplete="off" spellcheck="false" autocapitalize="off"></div></div></div>
+<div id="hint">Déplacer : glisse un neurone · ➕ clique dans une colonne cachée · 🗑 clique un neurone · ✂ clique un lien (couper/rétablir) · ✎ clique un lien pour fixer son poids · ❄ gèle un neurone (il n’apprend plus) · 🔍 voit ce que détecte un neurone (clique dans le vide pour quitter). Liens cyan = positifs, magenta = négatifs, épais = forts.</div>
+
+<script>
+const $=s=>document.querySelector(s),COL=['#00f0ff','#ff2bd6','#b6ff00'];
+const rn=()=>Math.sqrt(-2*Math.log(Math.random()+1e-12))*Math.cos(6.2832*Math.random());
+const FE=[['x',(x,y)=>x],['y',(x,y)=>y],['x²',(x,y)=>x*x],['y²',(x,y)=>y*y],['xy',(x,y)=>x*y],['sin x',(x,y)=>Math.sin(3*x)],['sin y',(x,y)=>Math.sin(3*y)]];
+const act=(t,v)=>t=='relu'?(v>0?v:0):t=='tanh'?Math.tanh(v):t=='sig'?1/(1+Math.exp(-v)):(v>0?v:.01*v);
+const dact=(t,v,y)=>t=='relu'?(v>0?1:0):t=='tanh'?1-y*y:t=='sig'?y*(1-y):(v>0?1:.01);
+let feats=[0,1],D={X:[],Y:[],C:2,tr:[],va:[]},N=null,run=false,mode='move',hist=[],ep=0,acc=0,vacc=0,insp=null,drawOn=false,pen=0,drag=null,AA=null;
+
+/* ---------- données ---------- */
+function split(){D.tr=[];D.va=[];D.X.forEach((_,i)=>(Math.random()<.8?D.tr:D.va).push(i))}
+function gen(){
+  const k=$('#ds').value,z=+$('#nz').value||0,X=[],Y=[],n=100;
+  if(k=='spirals'){for(let c=0;c<3;c++)for(let j=0;j<n;j++){const r=j/n,t=c*4+4*j/n+rn()*z;X.push([r*Math.sin(t),r*Math.cos(t)]);Y.push(c)}D.C=3}
+  else if(k=='xor'){for(let i=0;i<2*n;i++){const x=Math.random()*2-1,y=Math.random()*2-1;X.push([x+rn()*z*.4,y+rn()*z*.4]);Y.push(x*y>0?1:0)}D.C=2}
+  else if(k=='circles'){for(let i=0;i<2*n;i++){const c=i%2,r=(c?.25:.75)+rn()*z*.25,a=Math.random()*6.2832;X.push([r*Math.cos(a),r*Math.sin(a)]);Y.push(c)}D.C=2}
+  else if(k=='moons'){for(let i=0;i<2*n;i++){const c=i%2,t=Math.random()*Math.PI,px=c?1-Math.cos(t):Math.cos(t),py=c?.5-Math.sin(t):Math.sin(t);X.push([(px-.5+rn()*z*.4)*.65,(py-.25+rn()*z*.4)*.65]);Y.push(c)}D.C=2}
+  else if(k=='blobs'){const C=[[-.5,-.5],[.5,-.5],[0,.55]];for(let c=0;c<3;c++)for(let j=0;j<n;j++){X.push([C[c][0]+rn()*(.12+z*.3),C[c][1]+rn()*(.12+z*.3)]);Y.push(c)}D.C=3}
+  else D.C=3;
+  D.X=X;D.Y=Y;split();
+}
+const inp=pts=>{const d=feats.length,o=new Float64Array(pts.length*d);pts.forEach((p,r)=>feats.forEach((f,k)=>o[r*d+k]=FE[f][1](p[0],p[1])));return o};
+
+/* ---------- réseau ---------- */
+function layout(n){n.pos=n.sizes.map((s,l)=>Array.from({length:s},(_,i)=>({x:(l+.5)/n.sizes.length,y:(i+.5)/s})))}
+function initW(n){
+  n.W=[];n.B=[];n.M=[];
+  for(let l=0;l<n.sizes.length-1;l++){const i=n.sizes[l],o=n.sizes[l+1],w=new Float64Array(i*o),s=Math.sqrt(2/i);for(let k=0;k<w.length;k++)w[k]=rn()*s;n.W.push(w);n.B.push(new Float64Array(o));n.M.push(new Uint8Array(i*o).fill(1))}
+}
+function initOpt(n){n.t=0;n.s=n.W.map((w,l)=>({mw:new Float64Array(w.length),vw:new Float64Array(w.length),mb:new Float64Array(n.B[l].length),vb:new Float64Array(n.B[l].length)}))}
+function mk(sizes,a){const n={sizes,act:a};initW(n);n.F=sizes.map(s=>new Uint8Array(s));layout(n);initOpt(n);return n}
+function rebuild(){const hid=N?N.sizes.slice(1,-1):[6,4];N=mk([feats.length,...hid,D.C],$('#act').value);hist=[];ep=0;insp=null;paint()}
+
+function addCol(W,M,i,o){const nw=new Float64Array(i*(o+1)),nm=new Uint8Array(i*(o+1)).fill(1);for(let r=0;r<i;r++){for(let c=0;c<o;c++){nw[r*(o+1)+c]=W[r*o+c];nm[r*(o+1)+c]=M[r*o+c]}nw[r*(o+1)+o]=rn()*.5}return[nw,nm]}
+function delCol(W,M,i,o,c){const o2=o-1,nw=new Float64Array(i*o2),nm=new Uint8Array(i*o2);for(let r=0;r<i;r++)for(let q=0,t=0;q<o;q++){if(q==c)continue;nw[r*o2+t]=W[r*o+q];nm[r*o2+t]=M[r*o+q];t++}return[nw,nm]}
+function chg(l,add,idx){
+  const S=N.sizes,i0=S[l-1],o=S[l],o2=S[l+1];
+  const[w,m]=add?addCol(N.W[l-1],N.M[l-1],i0,o):delCol(N.W[l-1],N.M[l-1],i0,o,idx);
+  N.W[l-1]=w;N.M[l-1]=m;
+  const b=[...N.B[l-1]];if(add)b.push(0);else b.splice(idx,1);N.B[l-1]=Float64Array.from(b);
+  const W=N.W[l],M=N.M[l];
+  if(add){const nw=new Float64Array((o+1)*o2),nm=new Uint8Array((o+1)*o2).fill(1);nw.set(W);nm.set(M);for(let q=o*o2;q<nw.length;q++)nw[q]=rn()*.5;N.W[l]=nw;N.M[l]=nm}
+  else{N.W[l]=Float64Array.from([...W.slice(0,idx*o2),...W.slice((idx+1)*o2)]);N.M[l]=Uint8Array.from([...M.slice(0,idx*o2),...M.slice((idx+1)*o2)])}
+  const F=[...N.F[l]];if(add)F.push(0);else F.splice(idx,1);N.F[l]=Uint8Array.from(F);
+  S[l]+=add?1:-1;initOpt(N);
+}
+function rnd(n,s){const w=new Float64Array(n);for(let k=0;k<n;k++)w[k]=rn()*s;return w}
+function addLayer(){
+  const S=N.sizes,k=S.length-1;if(k>6)return;
+  S.splice(k,0,4);const ob=N.B[k-1];
+  N.W.splice(k-1,1,rnd(S[k-1]*4,Math.sqrt(2/S[k-1])),rnd(4*S[k+1],.7));
+  N.B.splice(k-1,1,new Float64Array(4),ob);
+  N.M.splice(k-1,1,new Uint8Array(S[k-1]*4).fill(1),new Uint8Array(4*S[k+1]).fill(1));
+  N.F.splice(k,0,new Uint8Array(4));layout(N);initOpt(N);paint();
+}
+function remLayer(){
+  const S=N.sizes,k=S.length-1;if(k<3)return;
+  const ob=N.B[k-1],h=k-1;S.splice(h,1);
+  N.W.splice(h-1,2,rnd(S[h-1]*S[h],Math.sqrt(2/S[h-1])));
+  N.B.splice(h-1,2,ob);N.M.splice(h-1,2,new Uint8Array(S[h-1]*S[h]).fill(1));
+  N.F.splice(h,1);layout(N);initOpt(N);paint();
+}
+
+function fwd(X,m){
+  const a=[X],z=[],L=N.W.length;
+  for(let l=0;l<L;l++){
+    const i=N.sizes[l],o=N.sizes[l+1],W=N.W[l],B=N.B[l],A=a[l],Z=new Float64Array(m*o);
+    for(let r=0;r<m;r++)for(let j=0;j<o;j++){let s=B[j];for(let k=0;k<i;k++)s+=A[r*i+k]*W[k*o+j];Z[r*o+j]=s}
+    z.push(Z);a.push(l<L-1?Z.map(v=>act(N.act,v)):Z);
+  }
+  return{a,z};
+}
+function lossOf(o,y,m){
+  const C=N.sizes[N.sizes.length-1],d=new Float64Array(m*C);let L=0,ok=0;
+  for(let r=0;r<m;r++){
+    let mx=-1e18,am=0;for(let j=0;j<C;j++)if(o[r*C+j]>mx){mx=o[r*C+j];am=j}
+    let s=0;for(let j=0;j<C;j++){d[r*C+j]=Math.exp(o[r*C+j]-mx);s+=d[r*C+j]}
+    for(let j=0;j<C;j++)d[r*C+j]/=s;
+    L-=Math.log(d[r*C+y[r]]+1e-12);if(am==y[r])ok++;d[r*C+y[r]]-=1;
+  }
+  for(let q=0;q<d.length;q++)d[q]/=m;
+  return{loss:L/m,acc:ok/m,d};
+}
+function upd(l,dW,db){
+  const s=N.s[l],t=N.t,lr=+$('#lr').value||.02,b1=.9,b2=.999,c1=1-b1**t,c2=1-b2**t,o=N.sizes[l+1],W=N.W[l],B=N.B[l],M=N.M[l],F=N.F[l+1];
+  for(let q=0;q<W.length;q++){if(!M[q]||F[q%o])continue;s.mw[q]=b1*s.mw[q]+(1-b1)*dW[q];s.vw[q]=b2*s.vw[q]+(1-b2)*dW[q]*dW[q];W[q]-=lr*(s.mw[q]/c1)/(Math.sqrt(s.vw[q]/c2)+1e-8)}
+  for(let j=0;j<o;j++){if(F[j])continue;s.mb[j]=b1*s.mb[j]+(1-b1)*db[j];s.vb[j]=b2*s.vb[j]+(1-b2)*db[j]*db[j];B[j]-=lr*(s.mb[j]/c1)/(Math.sqrt(s.vb[j]/c2)+1e-8)}
+}
+function step(b){
+  const m=b.length,f=fwd(inp(b.map(i=>D.X[i])),m),r=lossOf(f.a[N.W.length],b.map(i=>D.Y[i]),m);
+  let d=r.d;N.t++;
+  for(let l=N.W.length-1;l>=0;l--){
+    const i=N.sizes[l],o=N.sizes[l+1],A=f.a[l],W=N.W[l],dW=new Float64Array(i*o),db=new Float64Array(o);
+    for(let q=0;q<m;q++)for(let j=0;j<o;j++){const g=d[q*o+j];db[j]+=g;for(let k=0;k<i;k++)dW[k*o+j]+=A[q*i+k]*g}
+    let nd=null;
+    if(l>0){nd=new Float64Array(m*i);for(let q=0;q<m;q++)for(let k=0;k<i;k++){let s=0;for(let j=0;j<o;j++)s+=d[q*o+j]*W[k*o+j];nd[q*i+k]=s*dact(N.act,f.z[l-1][q*i+k],A[q*i+k])}}
+    upd(l,dW,db);d=nd;
+  }
+  return{L:r.loss,acc:r.acc};
+}
+function ev(ids){if(!ids.length)return{loss:0,acc:0};const f=fwd(inp(ids.map(i=>D.X[i])),ids.length);return lossOf(f.a[N.W.length],ids.map(i=>D.Y[i]),ids.length)}
+function epoch(){
+  const tr=[...D.tr];if(!tr.length)return;
+  for(let i=tr.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[tr[i],tr[j]]=[tr[j],tr[i]]}
+  const bs=+$('#bs').value||16;let L=0,A=0;
+  for(let i=0;i<tr.length;i+=bs){const b=tr.slice(i,i+bs),r=step(b);L+=r.L*b.length;A+=r.acc*b.length}
+  const v=ev(D.va);hist.push([L/tr.length,v.loss]);ep++;acc=A/tr.length;vacc=v.acc;
+}
+
+/* ---------- dessin ---------- */
+const NP=(l,i)=>[N.pos[l][i].x*900,N.pos[l][i].y*560];
+function drawNet(){
+  const c=$('#net'),g=c.getContext('2d');g.clearRect(0,0,900,560);
+  for(let l=0;l<N.W.length;l++){
+    const i0=N.sizes[l],o=N.sizes[l+1];
+    for(let k=0;k<i0;k++)for(let j=0;j<o;j++){
+      const q=k*o+j,a=NP(l,k),b=NP(l+1,j);g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);
+      if(!N.M[l][q]){g.strokeStyle='#2a2d4a';g.lineWidth=1;g.setLineDash([3,5])}
+      else{const w=N.W[l][q],al=Math.min(1,.15+Math.abs(w)*.5);g.setLineDash([]);g.strokeStyle=w>0?`rgba(0,240,255,${al})`:`rgba(255,43,214,${al})`;g.lineWidth=.5+Math.min(6,Math.abs(w)*2.5)}
+      g.stroke();
+    }
+  }
+  if(ovOn()&&LA&&LA.length==N.sizes.length&&LA.every((a,l)=>a.length==N.sizes[l])){
+    for(let l=0;l<N.W.length;l++){const i0=N.sizes[l],o=N.sizes[l+1],C=[];let mc=1e-9;
+      for(let k=0;k<i0;k++)for(let j=0;j<o;j++){const c=N.M[l][k*o+j]?LA[l][k]*N.W[l][k*o+j]:0;C.push(c);mc=Math.max(mc,Math.abs(c))}
+      for(let k=0;k<i0;k++)for(let j=0;j<o;j++){const c=C[k*o+j],r=Math.abs(c)/mc;if(r<.3)continue;const a=NP(l,k),b=NP(l+1,j);
+        g.setLineDash([]);g.strokeStyle=c>0?`rgba(182,255,0,${r})`:`rgba(255,43,214,${r})`;g.lineWidth=1+3*r;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();
+        const t=(T/900+(k*7+j*3)*.11)%1;g.fillStyle='#fff';g.beginPath();g.arc(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,2.5,0,6.2832);g.fill()}}
+  }
+  g.setLineDash([]);g.font='12px system-ui';g.textBaseline='middle';
+  for(let l=0;l<N.sizes.length;l++){
+    const mx=AA?Math.max(1e-9,...Array.from(AA[l]).map(Math.abs)):1;
+    for(let i=0;i<N.sizes[l];i++){
+      const[x,y]=NP(l,i),last=l==N.sizes.length-1;
+      let mean=0;if(AA){const s=N.sizes[l],n=D.X.length;for(let r=0;r<n;r++)mean+=Math.abs(AA[l][r*s+i]);mean/=n||1}
+      const gl=ovOn()&&GL&&GL[l]&&GL[l].length==N.sizes[l]?GL[l][i]:-1,al=gl>=0?.12+.88*gl:.2+.8*Math.min(1,mean/mx);
+      if(gl>.5){g.shadowColor='#fff';g.shadowBlur=24*gl}
+      g.beginPath();g.arc(x,y,14,0,6.2832);
+      g.fillStyle=last?COL[i]||'#fff':l==0?'#8c93c8':`rgba(0,240,255,${al})`;g.fill();
+      const on=insp&&insp.l==l&&insp.i==i,fr=l>0&&N.F[l][i];
+      g.lineWidth=on||fr?3:1;g.strokeStyle=on?'#fff':fr?'#6aa0ff':'#07080f';g.stroke();g.shadowBlur=0;
+      g.fillStyle='#dfe6ff';
+      if(l==0){g.textAlign='right';g.fillText(FE[feats[i]][0],x-20,y)}
+      if(last){g.textAlign='left';g.fillText('classe '+i,x+20,y)}
+    }
+  }
+}
+function drawCv(){
+  const c=$('#cv'),g=c.getContext('2d'),W=420,G=40,cell=W/G,pts=[];
+  for(let i=0;i<G;i++)for(let j=0;j<G;j++)pts.push([j/(G-1)*2-1,1-i/(G-1)*2]);
+  const f=fwd(inp(pts),G*G),L=N.W.length,C=N.sizes[L];
+  let hv=null,mn=0,mx=1;
+  if(insp){const s=N.sizes[insp.l];hv=Array.from({length:G*G},(_,r)=>f.a[insp.l][r*s+insp.i]);mn=Math.min(...hv);mx=Math.max(...hv)+1e-9}
+  g.clearRect(0,0,W,W);
+  for(let r=0;r<G*G;r++){
+    if(hv){const t=(hv[r]-mn)/(mx-mn);g.fillStyle=`hsla(${210-180*t},90%,${25+35*t}%,.8)`}
+    else{let am=0;for(let j=1;j<C;j++)if(f.a[L][r*C+j]>f.a[L][r*C+am])am=j;g.fillStyle=COL[am]+'44'}
+    g.fillRect((r%G)*cell,(r/G|0)*cell,cell+1,cell+1);
+  }
+  const va=new Set(D.va);
+  D.X.forEach((p,i)=>{
+    g.beginPath();g.arc((p[0]+1)/2*W,(1-p[1])/2*W,4,0,6.2832);
+    if(va.has(i)){g.strokeStyle=COL[D.Y[i]];g.lineWidth=2;g.stroke()}else{g.fillStyle=COL[D.Y[i]];g.fill();g.strokeStyle='#07080f';g.lineWidth=1;g.stroke()}
+  });
+  if(ovOn()){trail.forEach(([x,y],i)=>{g.fillStyle=`rgba(255,255,255,${i/trail.length*.5})`;g.fillRect((x+1)/2*W-1,(1-y)/2*W-1,3,3)});
+    const px=(PX+1)/2*W,py=(1-PY)/2*W;g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.arc(px,py,9,0,6.2832);g.moveTo(px-14,py);g.lineTo(px+14,py);g.moveTo(px,py-14);g.lineTo(px,py+14);g.stroke()}
+  g.fillStyle='#dfe6ff';g.font='11px monospace';g.fillText(insp?`neurone couche ${insp.l} #${insp.i}`:'● train  ○ validation',8,14);
+}
+function drawCh(){
+  const g=$('#ch').getContext('2d'),W=420,H=170;g.clearRect(0,0,W,H);
+  g.strokeStyle='#26294a';g.strokeRect(30,8,W-40,H-30);
+  if(hist.length<2)return;
+  const all=hist.flat(),mx=Math.max(...all),mn=Math.min(...all);
+  [[0,'#00f0ff'],[1,'#ff2bd6']].forEach(([k,col])=>{
+    g.strokeStyle=col;g.beginPath();
+    hist.forEach((h,i)=>{const x=30+i/(hist.length-1)*(W-40),y=8+(1-(h[k]-mn)/(mx-mn+1e-9))*(H-30);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();
+  });
+  g.fillStyle='#8c93c8';g.font='10px monospace';g.fillText(mx.toFixed(2),0,16);g.fillText(mn.toFixed(2),0,H-22);
+  g.fillText('loss : train (cyan) / validation (magenta)',40,H-6);
+}
+function paint(){
+  AA=D.X.length?fwd(inp(D.X),D.X.length).a:null;
+  drawNet();drawCv();drawCh();liveTxt();
+  $('#st').textContent=`époque ${ep} · loss ${hist.length?hist[hist.length-1][0].toFixed(3):'-'} · train ${(acc*100).toFixed(0)}% · val ${(vacc*100).toFixed(0)}%`;
+}
+function loop(){if(!run)return;const t0=performance.now();while(performance.now()-t0<14)epoch();paint();requestAnimationFrame(loop)}
+
+/* ---------- interactions ---------- */
+const mp=(e,c)=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};
+function hitNode(x,y){for(let l=0;l<N.sizes.length;l++)for(let i=0;i<N.sizes[l];i++){const p=NP(l,i);if(Math.hypot(p[0]-x,p[1]-y)<17)return{l,i}}return null}
+function hitLink(x,y){
+  let best=null,bd=7;
+  for(let l=0;l<N.W.length;l++){const o=N.sizes[l+1];for(let k=0;k<N.sizes[l];k++)for(let j=0;j<o;j++){
+    const a=NP(l,k),b=NP(l+1,j),dx=b[0]-a[0],dy=b[1]-a[1];
+    let t=((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy);t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(a[0]+t*dx-x,a[1]+t*dy-y);if(d<bd){bd=d;best={l,q:k*o+j}}
+  }}
+  return best;
+}
+$('#net').onpointerdown=e=>{
+  const[x,y]=mp(e,e.target),n=hitNode(x,y),H=N.sizes.length-1;
+  if(mode=='move'){if(n){drag=n;e.target.setPointerCapture(e.pointerId)}}
+  else if(mode=='add'){
+    let bl=1,bd=1e9;for(let l=1;l<H;l++){const d=Math.abs(N.pos[l][0].x*900-x);if(d<bd){bd=d;bl=l}}
+    if(H>=2&&N.sizes[bl]<12){chg(bl,true);N.pos[bl].push({x:Math.max(.03,Math.min(.97,x/900)),y:Math.max(.04,Math.min(.96,y/560))})}
+  }
+  else if(mode=='del'){if(n&&n.l>0&&n.l<H&&N.sizes[n.l]>1){chg(n.l,false,n.i);N.pos[n.l].splice(n.i,1);insp=null}}
+  else if(mode=='frz'){if(n&&n.l>0)N.F[n.l][n.i]^=1}
+  else if(mode=='insp'){insp=n}
+  else{
+    const k=hitLink(x,y);
+    if(k&&mode=='cut'){N.M[k.l][k.q]^=1;N.W[k.l][k.q]=N.M[k.l][k.q]?rn()*.5:0}
+    if(k&&mode=='w'){const v=parseFloat(prompt('Nouveau poids',N.W[k.l][k.q].toFixed(3)));if(!isNaN(v)){N.W[k.l][k.q]=v;N.M[k.l][k.q]=1}}
+  }
+  paint();
+};
+$('#net').onpointermove=e=>{if(!drag)return;const[x,y]=mp(e,e.target);N.pos[drag.l][drag.i]={x:Math.max(.03,Math.min(.97,x/900)),y:Math.max(.04,Math.min(.96,y/560))};drawNet()};
+$('#net').onpointerup=()=>{drag=null};
+$('#cv').onpointerdown=e=>{
+  if(!drawOn)return;const[x,y]=mp(e,e.target);
+  D.X.push([x/420*2-1,1-y/420*2]);D.Y.push(pen);(Math.random()<.8?D.tr:D.va).push(D.X.length-1);paint();
+};
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',x==b))});
+document.querySelectorAll('.pen').forEach(b=>b.onclick=()=>{pen=+b.dataset.p;document.querySelectorAll('.pen').forEach(x=>x.classList.toggle('on',x==b))});
+$('#dr').onclick=()=>{drawOn=!drawOn;$('#dr').classList.toggle('on',drawOn);if(drawOn&&$('#ds').value!='custom'){$('#ds').value='custom';gen();rebuild()}};
+$('#go').onclick=()=>{run=!run;$('#go').textContent=run?'⏸ Pause':'▶ Entraîner';if(run)loop()};
+$('#one').onclick=()=>{epoch();paint()};
+$('#rw').onclick=()=>{const M=N.M;initW(N);N.M=M.map(m=>m);N.W.forEach((w,l)=>w.forEach((_,q)=>{if(!N.M[l][q])w[q]=0}));initOpt(N);hist=[];ep=0;paint()};
+$('#nd').onclick=()=>{gen();hist=[];ep=0;paint()};
+$('#ds').onchange=()=>{gen();rebuild()};
+$('#nz').onchange=()=>{gen();hist=[];ep=0;paint()};
+$('#act').onchange=()=>{N.act=$('#act').value;paint()};
+$('#al').onclick=addLayer;$('#rl').onclick=remLayer;
+$('#lay').onclick=()=>{layout(N);paint()};
+$('#pr').onclick=()=>{
+  const t=parseFloat(prompt('Couper les liens dont |poids| est inférieur à','0.1'));if(isNaN(t))return;
+  N.W.forEach((w,l)=>w.forEach((v,q)=>{if(N.M[l][q]&&Math.abs(v)<t){N.M[l][q]=0;w[q]=0}}));paint();
+};
+$('#fe').innerHTML=FE.map((f,i)=>`<label><input type="checkbox" data-f="${i}" ${feats.includes(i)?'checked':''}>${f[0]}</label>`).join('');
+$('#fe').onchange=()=>{
+  feats=[...document.querySelectorAll('[data-f]')].filter(c=>c.checked).map(c=>+c.dataset.f);
+  if(!feats.length){feats=[0];document.querySelector('[data-f="0"]').checked=true}
+  rebuild();
+};
+$('#exp').onclick=()=>{
+  const j={sizes:N.sizes,act:N.act,feats,W:N.W.map(w=>Array.from(w)),B:N.B.map(w=>Array.from(w)),M:N.M.map(w=>Array.from(w)),F:N.F.map(w=>Array.from(w)),pos:N.pos};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j)],{type:'application/json'}));a.download='labo_ia_reseau.json';a.click();
+};
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const j=JSON.parse(await f.text());
+    feats=j.feats;document.querySelectorAll('[data-f]').forEach(c=>c.checked=feats.includes(+c.dataset.f));
+    N={sizes:j.sizes,act:j.act,W:j.W.map(a=>Float64Array.from(a)),B:j.B.map(a=>Float64Array.from(a)),M:j.M.map(a=>Uint8Array.from(a)),F:j.F.map(a=>Uint8Array.from(a)),pos:j.pos};
+    $('#act').value=j.act;initOpt(N);hist=[];ep=0;insp=null;
+    if(N.sizes[N.sizes.length-1]!=D.C){D.C=N.sizes[N.sizes.length-1]}
+    paint();
+  }catch(err){alert('Fichier invalide')}
+  e.target.value='';
+};
+
+/* ---------- mode LIVE ---------- */
+let live=false,lfOn=false,PX=0,PY=0,PIN=null,hold=0,LA=null,GL=null,trail=[],T=0;
+const ovOn=()=>live||performance.now()<hold;
+const sm=a=>{const m=Math.max(...a),e=Array.from(a,v=>Math.exp(v-m)),t=e.reduce((p,c)=>p+c,0);return e.map(v=>v/t)};
+function probe(ts){
+  if(performance.now()>=hold){if(PIN){PX=PIN[0];PY=PIN[1]}else{PX=.8*Math.sin(ts/1900);PY=.8*Math.sin(ts/1300+1)}}
+  LA=fwd(inp([[PX,PY]]),1).a;
+  if(!GL||GL.length!=N.sizes.length||GL.some((g,l)=>g.length!=N.sizes[l]))GL=N.sizes.map(s=>new Float64Array(s));
+  LA.forEach((a,l)=>{const m=Math.max(1e-9,...Array.from(a,Math.abs));a.forEach((v,i)=>GL[l][i]=Math.max(GL[l][i]*.9,Math.abs(v)/m))});
+  trail.push([PX,PY]);if(trail.length>40)trail.shift();
+}
+function lf(ts){
+  if(!ovOn()){lfOn=false;paint();return}
+  T=ts;if(live&&$('#lt').checked){const t0=performance.now();while(performance.now()-t0<6)epoch()}
+  probe(ts);paint();requestAnimationFrame(lf);
+}
+const kick=()=>{if(!lfOn){lfOn=true;requestAnimationFrame(lf)}};
+function flash(x,y){PX=x;PY=y;hold=performance.now()+4000;kick()}
+function liveTxt(){
+  const e=$('#lv');if(!e)return;
+  if(ovOn()&&LA&&LA.length==N.sizes.length){const p=sm(LA[LA.length-1]),c=p.indexOf(Math.max(...p));e.textContent=`sonde (${PX.toFixed(2)}, ${PY.toFixed(2)}) → classe ${c} · ${(p[c]*100).toFixed(0)}%`}else e.textContent='';
+}
+$('#live').onclick=()=>{live=!live;$('#live').classList.toggle('on',live);if(live){run=false;$('#go').textContent='▶ Entraîner';kick()}};
+$('#cv').onpointermove=e=>{if(!live||drawOn)return;const[x,y]=mp(e,e.target);PIN=[x/420*2-1,1-y/420*2]};
+$('#cv').onpointerleave=()=>{PIN=null};
+
+/* ---------- chat IA ---------- */
+const nrm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function say(w,t){const d=document.createElement('div');d.className='m '+w;d.textContent=t;$('#msgs').append(d);$('#msgs').scrollTop=1e9}
+function state(){
+  const L=hist.length?hist[hist.length-1]:null;let on=0,tot=0;N.M.forEach(m=>m.forEach(v=>{tot++;on+=v}));
+  const fz=N.F.reduce((s,f)=>s+f.reduce((a,b)=>a+b,0),0);
+  return `Réseau ${N.sizes.join(' → ')} (${N.act}) · ${on}/${tot} liens actifs · ${fz} neurone(s) gelé(s).\nÉpoque ${ep}`+(L?` · loss train ${L[0].toFixed(3)} / val ${L[1].toFixed(3)}`:'')+` · précision train ${(acc*100).toFixed(0)}% / val ${(vacc*100).toFixed(0)}%.`+(ep>5&&acc-vacc>.12?'\n⚠ Gros écart train/val : surapprentissage probable.':'')+(live?'\nMode live actif.':'');
+}
+function explain(){
+  const L=hist.length>6?hist.slice(-6):null;
+  let tr=!L?`Pas assez d'époques pour juger la tendance.`:L[5][0]<L[0][0]-.005?`La loss baisse : l'IA apprend.`:L[5][0]>L[0][0]+.005?`La loss remonte : lr trop fort ou données bruitées.`:`La loss stagne : plateau (essaie plus de neurones, un autre lr ou une autre activation).`;
+  return `À chaque époque, l'IA regarde les points d'entraînement par paquets (batch), calcule ses erreurs et ajuste les poids (Adam). Le dégradé de la carte montre sa décision.\n${tr}\n${state()}`;
+}
+function inspect2(l,i){
+  if(!N.sizes[l]||i>=N.sizes[l])return `Ce neurone n'existe pas (couches 0 à ${N.sizes.length-1}).`;
+  insp={l,i};paint();if(l==0)return `Entrée « ${FE[feats[i]][0]} » : carte affichée à droite.`;
+  const o=N.sizes[l],ws=[];for(let k=0;k<N.sizes[l-1];k++)ws.push([N.W[l-1][k*o+i]*N.M[l-1][k*o+i],k]);
+  ws.sort((a,b)=>Math.abs(b[0])-Math.abs(a[0]));
+  return `Neurone couche ${l} #${i} : biais ${N.B[l-1][i].toFixed(2)}${N.F[l][i]?' · gelé':''}.\nEntrées principales : ${ws.slice(0,3).map(([w,k])=>`#${k} (${w.toFixed(2)})`).join(', ')}.\nSa carte de détection est affichée à droite.`;
+}
+/* ---------- cerveau : comprend, raisonne, apprend ---------- */
+const pick=a=>a[Math.random()*a.length|0],fx=(v,d=2)=>(+v).toFixed(d),cl=v=>Math.max(-1,Math.min(1,v));
+let BR={qa:[],ex:[],facts:[]},CTX=null,LAST='',PEND=null,AUTO=null,LQ=null;
+try{BR=JSON.parse(localStorage.getItem('labo_brain'))||BR}catch(e){}
+BR.facts=BR.facts||[];BR.qa=BR.qa||[];BR.ex=BR.ex||[];
+const sv=()=>{try{localStorage.setItem('labo_brain',JSON.stringify(BR))}catch(e){}};
+const SEED={
+predict:['prédis 0.3 -0.5','que penses tu du point 0.2 0.4','quelle classe pour 0.5 0.5','classe ce point','et pour 0.1 0.1','teste le point'],
+state:['état','comment tu vas','tu en es où','tes performances','ton score','quelle précision as tu'],
+explain:['explique','pourquoi','pourquoi cette réponse','comment tu apprends','que se passe t il','comment ça marche'],
+diag:['tu bloques','pourquoi tu n arrives pas','comment t améliorer','que faut il changer','un conseil','tu es nulle','tu progresses pas','pourquoi tu te trompes','tu te trompes souvent'],
+train:['entraîne toi','lance l apprentissage','apprends','commence à t entraîner','train'],
+stop:['stop','pause','arrête','calme toi'],
+live:['mode live','active le live','montre ton raisonnement','je veux voir tes neurones','coupe le live'],
+auto:['pilote auto','débrouille toi seule','améliore toi toi même','optimise toi','autotune','règle toi seule'],
+test:['teste toi','auto évaluation','interroge toi','fais un examen','où te trompes tu','tes erreurs'],
+data:['charge les spirales','jeu xor','mets les cercles','les lunes','blobs','change de données'],
+act:['active tanh','utilise relu','sigmoid','leaky relu','change l activation'],
+hello:['salut','bonjour','coucou','hello','yo','hey'],
+who:['qui es tu','tu es quoi','présente toi','tu fais quoi'],
+thanks:['merci','bravo','bien joué','super','génial','très bien'],
+help:['aide','help','commandes','que sais tu faire','?'],
+reset:['reset','réinitialise les poids','recommence à zéro'],
+addl:['ajoute une couche','plus de couches'],reml:['retire une couche','enlève une couche'],
+addn:['ajoute un neurone','ajoute 2 neurones','plus de neurones'],
+insp:['inspecte couche 1 neurone 2','regarde le neurone 1 de la couche 2'],
+time:['quelle heure est il','quel jour sommes nous','la date'],
+lr:['lr 0.01','taux d apprentissage 0.05','change le lr']};
+const IN=Object.keys(SEED),DM=512;
+const KB=[
+['c est quoi un neurone','Un neurone calcule une somme pondérée de ses entrées + un biais, puis applique une activation. Un point = une combinaison de coupures de l\'espace.'],
+['c est quoi le surapprentissage','Quand train ≫ validation : je mémorise le bruit au lieu de comprendre. Remède : plus de données, moins de neurones, élaguer.'],
+['c est quoi la loss','La loss (entropie croisée) mesure à quel point mes probabilités sont loin de la bonne classe. Plus elle baisse, mieux j\'apprends.'],
+['c est quoi un batch','Un paquet de points avec lequel j\'ajuste mes poids avant de passer au suivant. Petit batch = bruité mais rapide.'],
+['c est quoi adam','Adam est mon optimiseur : il adapte le pas de chaque poids grâce à la moyenne et à la variance de ses gradients.'],
+['c est quoi une activation','Une fonction non linéaire (ReLU, tanh…) sans laquelle mes couches ne feraient qu\'une grosse droite.'],
+['c est quoi le learning rate lr','Taille du pas à chaque mise à jour. Trop grand : je diverge. Trop petit : j\'apprends trop lentement.'],
+['c est quoi une époque','Un passage complet sur tous les points d\'entraînement.'],
+['c est quoi la validation','20% des points que je ne vois jamais pendant l\'entraînement : ils servent à vérifier que je généralise.']];
+const tok=s=>nrm(s).replace(/-?\d*\.?\d+/g,' # ').split(/[^a-z#]+/).filter(Boolean);
+const STOP=new Set('le la les un une des de du d l a au aux et ou en est c ce ca cest que qui quoi quel quelle qu je tu il elle on nous vous mon ma mes ton ta tes son sa ses me te se y pour par sur dans avec s t m n'.split(' '));
+const tk=s=>tok(s).filter(w=>!STOP.has(w)).map(w=>w.slice(0,5));
+let EX=[];
+function trainBrain(){EX=[];IN.forEach(k=>SEED[k].forEach(x=>EX.push([tk(x),k])));BR.ex.forEach(([x,k])=>EX.push([tk(x),k]))}
+const cos=(a,b)=>{const A=new Set(a),B=new Set(b);let n=0;A.forEach(w=>B.has(w)&&n++);return n/Math.sqrt(A.size*B.size||1)};
+function intent(t){let b=null,bs=0;const q=tk(t);EX.forEach(([w,k])=>{const c=cos(q,w);if(c>bs){bs=c;b=k}});return[b,bs]}
+function recall(t){const q=tk(t);let b=null,bs=.5;[...BR.qa,...KB].forEach(e=>{const c=cos(q,tk(e[0]));if(c>bs){bs=c;b=e}});return b}
+function calc(raw){
+  let e=nrm(raw).replace(/,/g,'.').replace(/(\d+(?:\.\d+)?)\s*%\s*de\s*(\d+(?:\.\d+)?)/g,'($1/100*$2)')
+   .replace(/racine( carree)?( de)?\s*(\d*\.?\d+)/g,'sqrt($3)').replace(/\bau carre\b/g,'**2').replace(/\bau cube\b/g,'**3').replace(/\bpuissance\b/g,'**')
+   .replace(/\bplus\b/g,'+').replace(/\bmoins\b/g,'-').replace(/\b(fois|multiplie par)\b/g,'*').replace(/\b(divise par|divise|sur)\b/g,'/')
+   .replace(/(\d)\s*[x×]\s*(\d)/g,'$1*$2').replace(/÷/g,'/').replace(/\^/g,'**')
+   .replace(/\b(combien|font|fait|calcule|calcul|quel|quelle|est|resultat|de|la|le|donne|moi|cest|c|egal|egale|que|qu|ca|fais|peux|tu|me|stp|svp)\b/g,' ').replace(/[=?!]/g,' ');
+  if(/[a-z]/.test(e.replace(/sqrt/g,''))||!/\d/.test(e)||!/\d\s*(\*\*|[+\-*\/])\s*[\d(]|sqrt|\d\s*\)\s*[+\-*\/]/.test(e))return null;
+  let r;try{r=Function('sqrt','"use strict";return ('+e+')')(Math.sqrt)}catch(x){return null}
+  return typeof r=='number'&&isFinite(r)?`${e.replace(/\*\*/g,'^').replace(/\s+/g,' ').trim()} = ${+r.toPrecision(12)}`:null;
+}
+function teachPt(x,y,c){
+  if(c>=D.C)return`Il n'y a que ${D.C} classes (0 à ${D.C-1}).`;
+  for(let k=0;k<3;k++){D.X.push([x,y]);D.Y.push(c);D.tr.push(D.X.length-1)}
+  for(let i=0;i<40;i++)epoch();paint();return`Appris : (${fx(x)}, ${fx(y)}) → classe ${c}. Point ajouté à mes données et je me suis réentraînée.\n`+ask(x,y);
+}
+
+function ask(x,y){
+  const f=fwd(inp([[x,y]]),1).a,p=sm(f[f.length-1]),c=p.indexOf(Math.max(...p));flash(x,y);CTX={x,y,c,p};
+  const nb=D.X.map((q,i)=>[Math.hypot(q[0]-x,q[1]-y),D.Y[i]]).sort((a,b)=>a[0]-b[0]).slice(0,5),vt=nb.filter(n=>n[1]==c).length,sp=[...p].sort((a,b)=>b-a);
+  return `${pick(['Je dirais','Pour moi','Mon avis :'])} classe ${c} (${fx(p[c]*100,0)}% sûre) au point (${fx(x)}, ${fx(y)}).\n`+
+  (sp[0]-sp[1]<.2?'Je suis hésitante : ce point est près d\'une de mes frontières.\n':'')+
+  `Ses 5 plus proches voisins d'entraînement : ${vt}/5 sont de classe ${c}`+(vt<3?' → je diverge de mes voisins, je me trompe peut-être ici.':' → cohérent avec ce que j\'ai appris.')+`\nProbas : ${p.map((v,i)=>i+' : '+fx(v*100,0)+'%').join(' · ')}`;
+}
+function why(){
+  if(!CTX)return explain();
+  const f=fwd(inp([[CTX.x,CTX.y]]),1).a,tops=f.slice(1,-1).map((a,l)=>`couche ${l+1} : `+Array.from(a,(v,i)=>[Math.abs(v),i]).sort((u,v)=>v[0]-u[0]).slice(0,2).map(z=>'#'+z[1]).join(', '));
+  return `J'ai répondu classe ${CTX.c} car mes neurones les plus actifs étaient → ${tops.join(' | ')||'aucun (pas de couche cachée)'}, et que ce point ressemble aux points d'entraînement voisins de cette classe.`;
+}
+function diag(){
+  const L=hist.length>8?hist.slice(-8):null,hs2=N.sizes.slice(1,-1),a=[];
+  if(ep<10)a.push('Je n\'ai quasiment pas appris : dis « entraîne » ou « pilote auto ».');
+  else{
+    if(acc<.7)a.push(hs2.reduce((x,y)=>x+y,0)<10?'Mon réseau est trop petit : ajoute des neurones ou une couche.':'Je n\'ai pas convergé : plus d\'époques ou un lr plus petit.');
+    if(acc-vacc>.12)a.push('Je surapprends (train ≫ val) : plus de données/bruit, moins de neurones, ou élague.');
+    if(L&&L[7][0]>L[0][0]+.01)a.push(`Ma loss remonte : lr trop fort (${$('#lr').value}).`);
+    else if(L&&Math.abs(L[7][0]-L[0][0])<.003&&acc<.9)a.push('Plateau : essaie leaky, un lr plus petit, ajoute des features (x², sin x…) ou « pilote auto ».');
+    if(!a.length)a.push('Rien de grave : je suis plutôt bien réglée.');
+  }
+  return a.join('\n');
+}
+function selfTest(){
+  const ids=D.va.length?D.va:D.tr,C=D.C,o=fwd(inp(ids.map(i=>D.X[i])),ids.length).a[N.W.length],cm=Array.from({length:C},()=>Array(C).fill(0)),bad=[];
+  ids.forEach((id,r)=>{let a=0;for(let j=1;j<C;j++)if(o[r*C+j]>o[r*C+a])a=j;cm[D.Y[id]][a]++;if(a!=D.Y[id])bad.push(id)});
+  const ok=ids.length-bad.length;if(bad.length)flash(D.X[bad[0]][0],D.X[bad[0]][1]);
+  return `Auto-test sur ${ids.length} points : ${ok} corrects (${fx(ok/ids.length*100,0)}%).\nMatrice (ligne = vrai, colonne = prédit) :\n`+cm.map((r,i)=>`  ${i} │ ${r.join('  ')}`).join('\n')+(bad.length?`\nMes erreurs : ${bad.slice(0,4).map(i=>`(${fx(D.X[i][0])}, ${fx(D.X[i][1])}) vrai ${D.Y[i]}`).join(' · ')}.`:'\nAucune erreur 🎉');
+}
+function grow(){
+  const h=N.sizes.slice(1,-1);if(!h.length){addLayer();return'couche ajoutée'}
+  const m=Math.min(...h),b=1+h.indexOf(m);if(m>=12){addLayer();return'couche ajoutée'}
+  chg(b,true);layout(N);return`neurone ajouté (couche ${b})`;
+}
+function auto(target,log){
+  if(AUTO){clearInterval(AUTO);AUTO=null;return log('Pilote auto arrêté.')}
+  if(run)$('#go').click();if(live)$('#live').click();
+  let cyc=0,best=0,stall=0,k=0;log(`Pilote auto : objectif ${fx(target*100,0)}% en validation. Je m'entraîne et je me règle seule.`);
+  AUTO=setInterval(()=>{
+    for(let i=0;i<25;i++)epoch();paint();cyc++;
+    if(vacc>=target&&acc>=target-.05){clearInterval(AUTO);AUTO=null;return log(`✔ Objectif atteint : ${ep} époques, train ${fx(acc*100,0)}% / val ${fx(vacc*100,0)}%.`)}
+    if(cyc>45){clearInterval(AUTO);AUTO=null;return log(`Je m'arrête après ${ep} époques : meilleur val ${fx(best*100,0)}%. Essaie d'autres features ou un autre jeu.`)}
+    stall=vacc>best+.01?0:stall+1;best=Math.max(best,vacc);
+    if(stall>=3){
+      stall=0;let r;
+      if(k%4==0)r=grow();else if(k%4==1){$('#lr').value=fx(Math.max(.002,+$('#lr').value/2),3);r='lr → '+$('#lr').value}
+      else if(k%4==2){$('#act').value='leaky';N.act='leaky';r='activation → LeakyReLU'}else r=grow();
+      k++;log(`Plateau (val ${fx(vacc*100,0)}%) → ${r}.`);
+    }
+  },60);
+}
+const H={
+predict:(t,n)=>n.length>1?ask(cl(n[0]),cl(n[1])):'Donne-moi deux nombres entre -1 et 1, ex. « 0.3 -0.5 ».',
+state:()=>state(),explain:()=>LAST=='predict'?why():explain(),diag:()=>diag(),test:()=>selfTest(),help:()=>help(),
+train:()=>{if(!run)$('#go').click();return pick(['C\'est parti, j\'apprends !','Entraînement lancé.'])},
+stop:()=>{if(AUTO)auto(0,()=>{});if(run)$('#go').click();if(live)$('#live').click();return'Tout est en pause.'},
+live:t=>{const off=/coupe|stop|arrete|desactive/.test(t);if(live==off)$('#live').click();return live?'Live activé : mes neurones s\'illuminent quand ils servent.':'Live coupé.'},
+auto:(t,n)=>{auto(n[0]>1?n[0]/100:n[0]||.92,s=>say('a',s));return null},
+data:t=>{const k=(t.match(/spiral|xor|cercle|lune|blob/)||[])[0];if(!k)return'Quel jeu ? spirales, xor, cercles, lunes ou blobs.';$('#ds').value={spiral:'spirals',xor:'xor',cercle:'circles',lune:'moons',blob:'blobs'}[k];$('#ds').onchange();return`Jeu de données : ${$('#ds').selectedOptions[0].text}. Réseau réinitialisé.`},
+act:t=>{const k=(t.match(/leaky|relu|tanh|sigmoid|sigmoide/)||[])[0];if(!k)return'Activations : relu, leaky, tanh, sigmoid.';$('#act').value=k=='leaky'?'leaky':k=='relu'?'relu':k=='tanh'?'tanh':'sig';$('#act').onchange();return`Activation : ${$('#act').selectedOptions[0].text}.`},
+hello:()=>pick(['Salut !','Hey !','Bonjour !'])+' '+(ep?`J'en suis à ${ep} époques, ${fx(vacc*100,0)}% en validation.`:'Je n\'ai pas encore appris, lance-moi !'),
+who:()=>`Je suis le réseau de neurones de ce labo : ${N.sizes.join(' → ')}. Je classe des points 2D, je m'explique, je me teste, je me règle et j'apprends tes réponses.`,
+thanks:()=>pick(['Merci ! 😊','Content que ça te plaise.','Ensemble on progresse !']),
+reset:()=>{$('#rw').click();return'Poids réinitialisés.'},
+addl:()=>{addLayer();return`Couche ajoutée : ${N.sizes.join(' → ')}.`},reml:()=>{remLayer();return`Couche retirée : ${N.sizes.join(' → ')}.`},
+addn:(t,n)=>{const h=N.sizes.length-1,b=Math.min(h-1,Math.max(1,n[0]||1));if(h<2||N.sizes[b]>=12)return'Impossible ici (couche cachée 1 à '+(h-1)+', 12 max).';chg(b,true);layout(N);paint();return`Neurone ajouté en couche ${b} : ${N.sizes.join(' → ')}.`},
+insp:(t,n)=>n.length>1?inspect2(n[0],n[1]):'Précise : « inspecte couche 1 neurone 2 ».',
+time:()=>new Date().toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'}),
+lr:(t,n)=>n.length?($('#lr').value=n[0],`lr = ${n[0]}.`):`lr actuel : ${$('#lr').value}.`};
+function help(){return `Parle-moi librement, je comprends le sens (pas seulement des mots-clés) :\n• calculs : « 12 fois 7 », « 20% de 150 », « racine de 81 »\n• deux nombres seuls (« 0.3 -0.5 ») → je classe le point et je justifie ; « non, classe 1 » → je corrige et me réentraîne\n• « je m'appelle … », « retiens que … » → je mémorise\n• « pourquoi ? » « tu bloques ? » → j'analyse mon propre état\n• « teste-toi » → auto-évaluation + matrice de confusion\n• « pilote auto » → je m'entraîne et me règle seule\n• « c'est quoi le surapprentissage ? » → je réponds\n• « apprends : question = réponse » → je retiens\n• si je ne sais pas, je te demande et j'apprends\nTerminal ⌨ : tape help.`}
+function think(raw){
+  const t=nrm(raw),n=(t.match(/-?\d*\.\d+|-?\d+/g)||[]).map(Number);let m;
+  if(PEND){const q=PEND;PEND=null;if(/^(annule|laisse|oublie)/.test(t))return'Ok, j\'oublie.';
+    if(intent(raw)[1]<.8&&!calc(raw)){BR.qa.push([q,raw]);sv();return`Retenu : « ${q} » → « ${raw} ». Redemande, je saurai.`}}
+  if(m=raw.match(/^\s*apprends?\s*:?\s*(.+?)\s*=>?\s*(.+)$/i)){BR.qa.push([m[1],m[2]]);sv();return`Retenu : « ${m[1]} » → « ${m[2]} ».`}
+  if(m=raw.match(/(?:je m'appelle|je m’appelle|mon nom est|appelle[- ]moi)\s+([\p{L}-]+)/iu)){BR.name=m[1];sv();return`Enchantée ${m[1]} !`}
+  if(/comment je m.?appelle|quel est mon nom|qui suis.je/.test(t))return BR.name?`Tu t'appelles ${BR.name}.`:'Je ne sais pas encore : dis « je m\'appelle … ».';
+  if(m=raw.match(/^\s*(?:retiens|souviens[- ]toi|note)\s*(?:que|:)?\s*(.+)$/i)){BR.facts.push(m[1]);sv();return`Noté : ${m[1]}.`}
+  if(/que sais.tu de moi|ce que tu as retenu|qu.est.ce que tu sais/.test(t))return BR.name||BR.facts.length?(BR.name?`Tu t'appelles ${BR.name}.\n`:'')+BR.facts.map(f=>'• '+f).join('\n'):'Rien encore. Dis « retiens que … ».';
+  if(/^(non|faux|incorrect|c est faux|tu te trompes|pas du tout)/.test(t)){
+    if(LAST=='predict'&&CTX){const d=t.match(/(\d+)\s*$/);return d?teachPt(CTX.x,CTX.y,+d[1]):'Dis « non, classe N » avec la bonne classe et je corrige.'}
+    if(LAST=='qa'&&LQ){const i=BR.qa.indexOf(LQ);if(i>=0)BR.qa.splice(i,1);sv();PEND=LQ[0];return'Pardon. Quelle est la bonne réponse ?'}
+  }
+  if((m=t.match(/(-?\d*\.\d+|-?\d+)\D+(-?\d*\.\d+|-?\d+).*classe\s*(\d+)/))&&/\b(est|devrait|serait|c est)\b/.test(t)&&n.length>=3)return teachPt(cl(+m[1]),cl(+m[2]),+m[3]);
+  if(m=raw.match(/^\s*\(?\s*(-?\d*\.?\d+)\s*[ ;,]\s*(-?\d*\.?\d+)\s*\)?\s*$/)){LAST='predict';return ask(cl(+m[1]),cl(+m[2]))}
+  const c=calc(raw);if(c){LAST='calc';return c}
+  const k=recall(raw);if(k){LAST='qa';LQ=k;return k[1]}
+  const q=tk(raw);let fb=null,fs=.34;BR.facts.forEach(f=>{const x=cos(q,tk(f));if(x>fs){fs=x;fb=f}});
+  if(fb&&/\?|quel|qui|comment|combien|quand/.test(t)){LAST='fact';return`Tu m'as dit : ${fb}.`}
+  if(raw.trim()=='?')return help();
+  const[i,sc2]=intent(raw);
+  if(sc2<.5){PEND=raw;LAST='?';return pick(['Je ne sais pas encore répondre à ça.','Là, je sèche.'])+'\nDis-moi la bonne réponse et je la retiendrai (ou « annule »).'}
+  LAST=i;if(i=='predict'&&n.length<2)return H.predict(t,n);return H[i](t,n);
+}
+let puterEnabled=false,puterBusy=false;
+const chatHistory=[];
+$('#puterToggle').onclick=()=>{puterEnabled=!puterEnabled;$('#puterToggle').textContent='☁ IA Puter : '+(puterEnabled?'ON':'OFF');$('#puterToggle').classList.toggle('on',puterEnabled);$('#puterStatus').textContent=puterEnabled?'Réponses par IA externe':'Mode local';};
+function extractPuterText(r){if(typeof r==='string')return r;const c=r?.message?.content??r?.text??r?.content;if(typeof c==='string')return c;if(Array.isArray(c))return c.map(x=>x.text||'').join('\n');return JSON.stringify(r);}
+async function send(txt){txt=(txt||$('#ci').value).trim();if(!txt||puterBusy)return;$('#ci').value='';say('u',txt);
+  if(puterEnabled){
+    if(!window.puter?.ai?.chat){say('a','Puter.js ne s’est pas chargé. Vérifie ta connexion Internet puis recharge la page.');return;}
+    puterBusy=true;$('#cs').disabled=true;$('#puterStatus').textContent='Réflexion…';
+    try{
+      const system='Tu es LABO·IA, une IA pédagogique intégrée à un laboratoire de réseaux de neurones. Réponds en français, avec des explications claires, précises et utiles. Pour les mathématiques, vérifie les calculs. Ne prétends pas que les appels à l’API entraînent les poids du réseau local : ils génèrent des réponses. Contexte du labo : '+state()+'\nMémoire locale Q/R : '+BR.qa.slice(-8).map(q=>q[0]+' = '+q[1]).join(' | ');
+      chatHistory.push({role:'user',content:txt});
+      const messages=[{role:'system',content:system},...chatHistory.slice(-12)];
+      const response=await puter.ai.chat(messages,{model:$('#puterModel').value});
+      const answer=extractPuterText(response)||'Je n’ai pas reçu de texte exploitable.';
+      chatHistory.push({role:'assistant',content:answer});if(chatHistory.length>20)chatHistory.splice(0,chatHistory.length-20);
+      say('a',answer);$('#puterStatus').textContent='Réponse reçue';
+    }catch(err){say('a','Erreur Puter : '+(err?.message||String(err))+'\nTu peux désactiver Puter pour revenir au cerveau local.');$('#puterStatus').textContent='Erreur API';}
+    finally{puterBusy=false;$('#cs').disabled=false;}
+  }else{const r=think(txt);if(r)say('a',r)}
+}
+$('#cs').onclick=()=>send();$('#ci').onkeydown=e=>{if(e.key=='Enter')send()};
+$('#chips').innerHTML=['aide','état','teste-toi','tu bloques ?','pilote auto','live','entraîne','pause'].map(c=>`<button>${c}</button>`).join('');
+$('#chips').onclick=e=>{if(e.target.tagName=='BUTTON')send(e.target.textContent)};
+trainBrain();
+say('a',`Salut ! Je réponds maintenant par moi-même : je comprends tes phrases, j'analyse mon état, je me teste, je me règle seule et j'apprends ce que tu m'enseignes. Tape « aide ».`);
+
+/* ---------- terminal ---------- */
+const to=(s,c='o')=>{const d=document.createElement('div');d.className=c;d.textContent=s;$('#tout').append(d);$('#tout').scrollTop=1e9};
+const HI=[];let hi=0;
+const num=(a,i)=>{const v=parseFloat(a[i]);if(isNaN(v))throw Error('argument numérique manquant');return v};
+const fidx=s=>FE.findIndex(f=>f[0].replace(' ','')==s.replace('2','²'));
+const TC={
+help:['liste des commandes',()=>Object.entries(TC).map(([k,v])=>k.padEnd(9)+v[0]).join('\n')+'\n(texte libre = je réponds comme dans le chat)'],
+state:['état du réseau',()=>state()],
+predict:['predict x y : classe un point + justification',a=>a.length>1?ask(cl(num(a,0)),cl(num(a,1))):'usage : predict x y'],
+eval:['auto-test + matrice de confusion',()=>selfTest()],
+train:['train [n] : n époques (50)',a=>{const n=a[0]?num(a,0):50;for(let i=0;i<n;i++)epoch();paint();return state()}],
+run:['démarre/pause l\'entraînement continu',()=>{$('#go').click();return run?'entraînement en cours':'pause'}],
+live:['live [on|off]',a=>{if(live!=(a[0]!='off'))$('#live').click();return'live '+(live?'on':'off')}],
+auto:['auto [%] : je me règle seule jusqu\'à l\'objectif (92)',a=>{auto(a[0]?num(a,0)/100:.92,s=>to(s,'c'));return''}],
+data:['data spirales|xor|cercles|lunes|blobs',a=>H.data(nrm(a.join(' ')))],
+noise:['noise v',a=>{$('#nz').value=num(a,0);$('#nz').onchange();return'bruit = '+$('#nz').value}],
+lr:['lr v',a=>{$('#lr').value=num(a,0);return'lr = '+$('#lr').value}],
+bs:['bs v : taille de batch',a=>{$('#bs').value=num(a,0);return'batch = '+$('#bs').value}],
+act:['act relu|leaky|tanh|sigmoid',a=>H.act(nrm(a.join(' ')))],
+feat:['feat x y x2 y2 xy sinx siny',a=>{const ix=a.map(fidx).filter(i=>i>=0);if(!ix.length)return'features : '+FE.map(f=>f[0].replace(' ','')).join(' ');document.querySelectorAll('[data-f]').forEach(c=>c.checked=ix.includes(+c.dataset.f));$('#fe').onchange();return'entrées : '+feats.map(i=>FE[i][0]).join(', ')}],
+net:['architecture et liens actifs',()=>N.sizes.map((s,l)=>`couche ${l} : ${s} neurones`+(l?` · biais [${Array.from(N.B[l-1],v=>fx(v)).join(' ')}]`:'')+(l&&N.F[l].some(v=>v)?' · gelés '+[...N.F[l]].map((v,i)=>v?i:'').join(''):'')).join('\n')],
+w:['w l : poids de la couche l vers l+1',a=>{const l=num(a,0),o=N.sizes[l+1];if(o==null)throw Error('couche invalide');let s='';for(let k=0;k<N.sizes[l];k++){s+='  '+k+' │';for(let j=0;j<o;j++)s+=N.M[l][k*o+j]?fx(N.W[l][k*o+j]).padStart(7):'      .';s+='\n'}return s.trimEnd()}],
+setw:['setw l k j v : fixe un poids',a=>{const l=num(a,0),k=num(a,1),j=num(a,2),v=num(a,3),q=k*N.sizes[l+1]+j;N.W[l][q]=v;N.M[l][q]=1;paint();return'ok'}],
+cut:['cut l k j : coupe/rétablit un lien',a=>{const l=num(a,0),q=num(a,1)*N.sizes[l+1]+num(a,2);N.M[l][q]^=1;N.W[l][q]=N.M[l][q]?rn()*.5:0;paint();return N.M[l][q]?'rétabli':'coupé'}],
+prune:['prune t : coupe |poids| < t',a=>{const t=num(a,0);let c=0;N.W.forEach((w,l)=>w.forEach((v,q)=>{if(N.M[l][q]&&Math.abs(v)<t){N.M[l][q]=0;w[q]=0;c++}}));paint();return c+' liens coupés'}],
+layer:['layer + | -',a=>{a[0]=='-'?remLayer():addLayer();return N.sizes.join(' → ')}],
+neuron:['neuron + l | neuron - l i',a=>{const l=num(a,1);if(l<1||l>N.sizes.length-2)throw Error('couche cachée invalide');if(a[0]=='-'){if(N.sizes[l]<2)throw Error('dernier neurone');const i=num(a,2);chg(l,false,i);N.pos[l].splice(i,1)}else{chg(l,true);N.pos[l].push({x:N.pos[l][0].x,y:.5})}paint();return N.sizes.join(' → ')}],
+freeze:['freeze l i : gèle/dégèle',a=>{N.F[num(a,0)][num(a,1)]^=1;paint();return'ok'}],
+inspect:['inspect l i : carte d\'un neurone',a=>inspect2(num(a,0),num(a,1))],
+reset:['réinitialise les poids',()=>H.reset()],
+export:['télécharge le réseau (.json)',()=>{$('#exp').click();return'export lancé'}],
+brain:['état de mon cerveau (appris)',()=>`Intentions : ${IN.length} · exemples appris : ${BR.ex.length} · Q/R apprises : ${BR.qa.length} · faits : ${BR.facts.length}${BR.name?' · prénom : '+BR.name:''}`+BR.qa.slice(-5).map(q=>`\n  « ${q[0]} » → ${q[1]}`).join('')],
+teach:['teach question = réponse',(a,l)=>think('apprends '+l.slice(5))],
+intent:['intent <nom> <phrase> : apprend une intention ('+IN.join(',')+')',(a)=>{if(!IN.includes(a[0])||a.length<2)return'usage : intent <nom> <phrase>';BR.ex.push([a.slice(1).join(' '),a[0]]);sv();trainBrain();return'intention apprise'}],
+forget:['oublie tout ce que j\'ai appris',()=>{BR={qa:[],ex:[],facts:[]};sv();trainBrain();return'mémoire effacée'}],
+ask:['ask <texte> : parle au cerveau',(a)=>think(a.join(' '))],
+history:['historique',()=>HI.map((h,i)=>i+1+'  '+h).join('\n')],
+clear:['efface l\'écran',()=>{$('#tout').innerHTML='';return''}]};
+function tx(line){
+  line=line.trim();if(!line)return;HI.push(line);hi=HI.length;to('labo> '+line,'d');
+  const[c,...a]=line.split(/\s+/),f=TC[c.toLowerCase()];
+  try{const r=f?f[1](a,line):think(line);if(r)to(r,f?'o':'c')}catch(e){to('Erreur : '+e.message,'e')}
+}
+$('#tin').onkeydown=e=>{
+  const i=e.target;
+  if(e.key=='Enter'){tx(i.value);i.value=''}
+  else if(e.key=='ArrowUp'){e.preventDefault();if(hi>0)i.value=HI[--hi]}
+  else if(e.key=='ArrowDown'){e.preventDefault();i.value=++hi<HI.length?HI[hi]:(hi=HI.length,'')}
+  else if(e.key=='Tab'){e.preventDefault();const m=Object.keys(TC).filter(k=>k.startsWith(i.value.toLowerCase()));if(m.length==1)i.value=m[0]+' ';else if(m.length)to(m.join('  '),'d')}
+};
+$('#term').onclick=()=>$('#tin').focus();
+to('LABO·IA terminal — « help » pour les commandes · Tab complète · ↑↓ historique','d');
+
+let fixedTrainer=null;
+$('#autotrain').onclick=()=>{
+  if(fixedTrainer){clearInterval(fixedTrainer);fixedTrainer=null;$('#autotrain').textContent='⚡ Auto 7–20/s : OFF';$('#autotrain').classList.remove('on');return;}
+  if(run){run=false;$('#go').textContent='▶ Entraîner';}
+  const rate=Math.max(7,Math.min(20,Math.round(Number($('#rate').value)||12)));$('#rate').value=rate;
+  fixedTrainer=setInterval(()=>{epoch();paint();},1000/rate);
+  $('#autotrain').textContent='⚡ Auto '+rate+'/s : ON';$('#autotrain').classList.add('on');
+};
+
+gen();rebuild();
+</script>
+</body>
+</html>
